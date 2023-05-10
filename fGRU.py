@@ -149,7 +149,6 @@ class fGRU(tf.keras.layers.Layer):
         # Compute facilitation interactions
         h_tilda = tf.keras.activations.relu(self.nu*(c_f + S) + self.omega*(c_f * S))
         # Additive and multiplicative facilitation of S
-        print('successfully went to h_tilda')
         ht = (1 - g_f) * h + g_f * h_tilda
         # Update recurrent state
         return ht
