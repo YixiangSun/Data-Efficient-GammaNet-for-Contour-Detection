@@ -3,22 +3,6 @@ import tensorflow as tf
 from tensorflow.python.keras import layers
 from tensorflow.python.keras import initializers
 
-class InstanceNorm(tf.keras.layers.Layer):
-    def __init__(self, hidden_channels):
-        super().__init__()
-        self.hidden_channels = hidden_channels
-        self.omicron = tf.Variable(np.zeros(self.hidden_channels), dtype='float32')
-        self.eta = tf.Variable(np.random.rand(self.hidden_channels), dtype='float32')
-        self.delta = tf.Variable(np.zeros(self.hidden_channels)+0.1, dtype='float32')
-
-    def call(self, r):
-        '''
-        Param: r, a 4D tensor, b x h x w x c, where b = 1
-        Return: a tensor normalized with the same size as r.
-        '''                
-        return tf.convert_to_tensor([self.omicron + self.delta * (r[0] - tf.math.reduce_mean(r[0], axis=(0, 1)))\
-                         /(tf.math.sqrt(tf.math.reduce_variance(r[0], axis=(0, 1))+self.eta))])
-
 class fGRU(tf.keras.layers.Layer):
     '''
     Generates an fGRUCell
@@ -26,10 +10,10 @@ class fGRU(tf.keras.layers.Layer):
     hidden_channels: the number of channels which is constant throughout the
                      processing of each unit
     '''
-    def __init__(self, input_shape, kernel_size=3, padding='same', use_attention=0, channel_sym = False):
+    def __init__(self, input_shape, kernel_size=3, padding='same', use_attention=0, channel_sym = True, name = 'fGRU'):
         # channel_sym assigned False for speed. Saves 30 seconds.
 
-        super().__init__()
+        super().__init__(name = name)
         self.hidden_channels = input_shape[-1]
         self.kernel_size = kernel_size
         self.padding = padding
@@ -152,3 +136,19 @@ class fGRU(tf.keras.layers.Layer):
         ht = (1 - g_f) * h + g_f * h_tilda
         # Update recurrent state
         return ht
+
+class InstanceNorm(tf.keras.layers.Layer):
+    def __init__(self, hidden_channels, name = 'instance_norm'):
+        super().__init__(name = name)
+        self.hidden_channels = hidden_channels
+        self.omicron = tf.Variable(np.zeros(self.hidden_channels), dtype='float32')
+        self.eta = tf.Variable(np.random.rand(self.hidden_channels), dtype='float32')
+        self.delta = tf.Variable(np.zeros(self.hidden_channels)+0.1, dtype='float32')
+
+    def call(self, r):
+        '''
+        Param: r, a 4D tensor, b x h x w x c, where b = 1
+        Return: a tensor normalized with the same size as r.
+        '''                
+        return self.omicron + self.delta * (r - tf.math.reduce_mean(r, axis = (1, 2), keepdims = True))\
+                        / tf.math.sqrt(tf.math.reduce_variance(r, axis = (1, 2), keepdims = True) + self.eta)
